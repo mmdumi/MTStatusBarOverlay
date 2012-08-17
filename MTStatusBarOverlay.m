@@ -22,6 +22,7 @@
 #import "MTStatusBarOverlay.h"
 #import <QuartzCore/QuartzCore.h>
 
+#import "WPProgressView.h"
 
 ////////////////////////////////////////////////////////////////////////
 #pragma mark -
@@ -90,8 +91,8 @@ MAX([UIApplication sharedApplication].statusBarFrame.size.width, [UIApplication 
 // Progress
 ///////////////////////////////////////////////////////
 
-#define kProgressViewAlpha                          0.4f
-#define kProgressViewBackgroundColor                [UIColor colorWithRed:0.0f green:0.0f blue:0.0f alpha:1.0f]
+#define kProgressViewAlpha                          1.0f
+#define kProgressViewBackgroundColor                [UIColor clearColor]
 
 
 ///////////////////////////////////////////////////////
@@ -171,6 +172,7 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 @property (nonatomic, strong) UIImageView *statusBarBackgroundImageView;
 @property (nonatomic, strong) UILabel *statusLabel1;
 @property (nonatomic, strong) UILabel *statusLabel2;
+@property (nonatomic, strong) WPProgressView *wpProgressView;
 @property (nonatomic, unsafe_unretained) UILabel *hiddenStatusLabel;
 @property (unsafe_unretained, nonatomic, readonly) UILabel *visibleStatusLabel;
 @property (nonatomic, strong) UIImageView *progressView;
@@ -248,6 +250,7 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 @synthesize statusBarBackgroundImageView = statusBarBackgroundImageView_;
 @synthesize statusLabel1 = statusLabel1_;
 @synthesize statusLabel2 = statusLabel2_;
+@synthesize wpProgressView = wpProgressView_;
 @synthesize hiddenStatusLabel = hiddenStatusLabel_;
 @synthesize progress = progress_;
 @synthesize progressView = progressView_;
@@ -387,7 +390,11 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 		[self addSubviewToBackgroundView:activityIndicator_];
     
 		// Finished-Label
-		finishedLabel_ = [[UILabel alloc] initWithFrame:CGRectMake(4.f,1.f,backgroundView_.frame.size.height, backgroundView_.frame.size.height-1.f)];
+		finishedLabel_ = [[UILabel alloc] initWithFrame:
+                      CGRectMake(4.f,
+                                 1.f,
+                                 backgroundView_.frame.size.height,
+                                 backgroundView_.frame.size.height-1.f)];
 		finishedLabel_.shadowOffset = CGSizeMake(0.f, 1.f);
 		finishedLabel_.backgroundColor = [UIColor clearColor];
 		finishedLabel_.hidden = YES;
@@ -398,26 +405,46 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 		[self addSubviewToBackgroundView:finishedLabel_];
     
 		// Status Label 1 is first visible
-		statusLabel1_ = [[UILabel alloc] initWithFrame:CGRectMake(30.f, 0.f, backgroundView_.frame.size.width - 60.f,backgroundView_.frame.size.height-1.f)];
+		statusLabel1_ = [[UILabel alloc] initWithFrame:
+                     CGRectMake(30.f,
+                                0.f,
+                                //                                backgroundView_.frame.size.width - 60.f,
+                                backgroundView_.frame.size.width/4 - 30.f ,
+                                backgroundView_.frame.size.height-1.f)];
 		statusLabel1_.backgroundColor = [UIColor clearColor];
 		statusLabel1_.shadowOffset = CGSizeMake(0.f, 1.f);
 		statusLabel1_.font = [UIFont boldSystemFontOfSize:kStatusLabelSize];
-		statusLabel1_.textAlignment = UITextAlignmentCenter;
+		statusLabel1_.textAlignment = UITextAlignmentLeft;
 		statusLabel1_.numberOfLines = 1;
 		statusLabel1_.lineBreakMode = UILineBreakModeTailTruncation;
-		statusLabel1_.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 		[self addSubviewToBackgroundView:statusLabel1_];
     
 		// Status Label 2 is hidden
-		statusLabel2_ = [[UILabel alloc] initWithFrame:CGRectMake(30.f, backgroundView_.frame.size.height,backgroundView_.frame.size.width - 60.f , backgroundView_.frame.size.height-1.f)];
+		statusLabel2_ = [[UILabel alloc] initWithFrame:
+                     CGRectMake(30.f,
+                                backgroundView_.frame.size.height,
+                                //                                backgroundView_.frame.size.width - 60.f ,
+                                backgroundView_.frame.size.width/4 - 30.f ,
+                                backgroundView_.frame.size.height-1.f)];
 		statusLabel2_.shadowOffset = CGSizeMake(0.f, 1.f);
 		statusLabel2_.backgroundColor = [UIColor clearColor];
 		statusLabel2_.font = [UIFont boldSystemFontOfSize:kStatusLabelSize];
-		statusLabel2_.textAlignment = UITextAlignmentCenter;
+		statusLabel2_.textAlignment = UITextAlignmentLeft;
 		statusLabel2_.numberOfLines = 1;
 		statusLabel2_.lineBreakMode = UILineBreakModeTailTruncation;
-		statusLabel2_.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 		[self addSubviewToBackgroundView:statusLabel2_];
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    wpProgressView_ = [[WPProgressView alloc] initWithFrame:
+                        CGRectMake(backgroundView_.frame.size.width/3,
+                                   4.f,
+                                   backgroundView_.frame.size.width/3 ,
+                                   backgroundView_.frame.size.height-8.f)];
+    [self addSubviewToBackgroundView:wpProgressView_];
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    
     
 		// the hidden status label at the beginning
 		hiddenStatusLabel_ = statusLabel2_;
@@ -602,7 +629,8 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 		[self.messageQueue removeObjectsInArray:clearedMessages];
     
 		// call delegate
-		if ([self.delegate respondsToSelector:@selector(statusBarOverlayDidClearMessageQueue:)] && clearedMessages.count > 0) {
+		if ([self.delegate respondsToSelector:@selector(statusBarOverlayDidClearMessageQueue:)]
+        && clearedMessages.count > 0) {
 			[self.delegate statusBarOverlayDidClearMessageQueue:clearedMessages];
 		}
 	}
@@ -614,6 +642,13 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 #pragma mark -
 #pragma mark Showing Next Message
 ////////////////////////////////////////////////////////////////////////
+
+- (CGFloat)getWidthForLabel:(UILabel *)label
+{
+  CGSize size = [label.text sizeWithFont:label.font];
+  return size.width;
+}
+
 
 - (void)showNextMessage {
   if (self.forcedToHide) {
@@ -709,15 +744,21 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
                           delay:0
                         options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction
                      animations:^{
+                       CGFloat width = MAX([self getWidthForLabel:self.statusLabel1], [self getWidthForLabel:self.statusLabel2]);
+                       
                        // move both status labels up
                        self.statusLabel1.frame = CGRectMake(self.statusLabel1.frame.origin.x,
                                                             self.statusLabel1.frame.origin.y - kStatusBarHeight,
-                                                            self.statusLabel1.frame.size.width,
+                                                            width,
                                                             self.statusLabel1.frame.size.height);
                        self.statusLabel2.frame = CGRectMake(self.statusLabel2.frame.origin.x,
                                                             self.statusLabel2.frame.origin.y - kStatusBarHeight,
-                                                            self.statusLabel2.frame.size.width,
+                                                            width,
                                                             self.statusLabel2.frame.size.height);
+                       self.wpProgressView.frame = CGRectMake(CGRectGetMaxX(self.statusLabel2.frame)+10,
+                                                              4.f,
+                                                              CGRectGetWidth(self.backgroundView.frame)-CGRectGetMaxX(self.statusLabel2.frame)-20,
+                                                              backgroundView_.frame.size.height-8.f);
                      }
                      completion:^(BOOL finished) {
                        // add old message to history
@@ -843,7 +884,7 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 	BOOL shrinkedBeforeTransformation = self.shrinked;
   
   
-	// hide and then unhide after rotation
+  // hide and then unhide after rotation
 	if (visibleBeforeTransformation) {
 		[self setHidden:YES useAlpha:YES];
 		[self setDetailViewHidden:YES animated:NO];
@@ -876,7 +917,24 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 		self.oldBackgroundViewFrame = CGRectMake(0.f,0.f,UIInterfaceOrientationIsPortrait(orientation) ? kScreenWidth : kScreenHeight,kStatusBarHeight);
 		// the backgroundView gets the newly computed smallFrame
 		self.backgroundView.frame = self.smallFrame;
-	}
+	} else {
+    // Update frames
+    CGFloat width = MAX([self getWidthForLabel:self.statusLabel1], [self getWidthForLabel:self.statusLabel2]);
+    
+    // move both status labels up
+    self.statusLabel1.frame = CGRectMake(self.statusLabel1.frame.origin.x,
+                                         self.statusLabel1.frame.origin.y,
+                                         width,
+                                         self.statusLabel1.frame.size.height);
+    self.statusLabel2.frame = CGRectMake(self.statusLabel2.frame.origin.x,
+                                         self.statusLabel2.frame.origin.y,
+                                         width,
+                                         self.statusLabel2.frame.size.height);
+    self.wpProgressView.frame = CGRectMake(CGRectGetMaxX(self.statusLabel2.frame)+10,
+                                           4.f,
+                                           CGRectGetWidth(self.backgroundView.frame)-CGRectGetMaxX(self.statusLabel2.frame)-20,
+                                           backgroundView_.frame.size.height-8.f);
+  }
   
 	// make visible after given time
 	if (visibleBeforeTransformation) {
@@ -910,8 +968,10 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
     progress_ = progress;
   }
   
+  [wpProgressView_ setProgress:progress];
+  
   // update UI on main thread
-  [self performSelectorOnMainThread:@selector(updateProgressViewSizeForLabel:) withObject:self.visibleStatusLabel waitUntilDone:NO];
+  //[self performSelectorOnMainThread:@selector(updateProgressViewSizeForLabel:) withObject:self.visibleStatusLabel waitUntilDone:NO];
 }
 
 - (void)setDetailText:(NSString *)detailText {
@@ -1341,6 +1401,7 @@ kDetailViewWidth, kHistoryTableRowHeight*kMaxHistoryTableRowCount + kStatusBarHe
 }
 
 - (void)updateProgressViewSizeForLabel:(UILabel *)label {
+  return;
   if (self.progress < 1.) {
     CGSize size = [label sizeThatFits:label.frame.size];
     CGFloat width = size.width * (float)(1. - self.progress);
